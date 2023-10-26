@@ -1,7 +1,15 @@
+# include built-in libraries
 import os
-from utils.download_utils import download_path, maybe_download, unzip_file
+from transformers import PreTrainedTokenizer
+import logging
 
+# include self-defined libraries
+from src.data_utils.download_utils import download_path, maybe_download, unzip_file
+from src.data_utils.preprocessing import encode_news_data
+from src.data_utils.preprocessing import category2id, user2id
 
+# Defining gloabl values
+log = logging.getLogger(__name__)
 
 URL_MIND_LARGE_TRAIN = (
     "https://mind201910small.blob.core.windows.net/release/MINDlarge_train.zip"
@@ -76,10 +84,63 @@ def extract_mind(
     return train_path, valid_path
 
 
-def download_extract_small_mind(size="small", dest_path=None):
+def download_extract_small_mind(size: str = "small", dest_path: str = None, clean_zip_file: bool = True):
     train_zip_path, valid_zip_path = download_mind(size, dest_path)
-    train_path, valid_path = extract_mind(train_zip=train_zip_path,valid_zip=valid_zip_path, clean_zip_file=True)
+    train_path, valid_path = extract_mind(train_zip=train_zip_path,valid_zip=valid_zip_path, clean_zip_file=clean_zip_file)
     return train_path, valid_path    
+
+
+def preprocess(train_path: str = None, valid_path: str = None, tokenizer: PreTrainedTokenizer = None):
+    '''
+        Processes the news.tsv file in train phase or validation phase
+    '''
+
+    # Check if train_path or validation_path is empty
+    if train_path is None and valid_path is None:
+        raise ValueError("At least train_path or valid_path must be specified")
+    
+    # Check if tokenizer is empty
+    if tokenizer is None:
+        raise ValueError("tokenizer must be specified")
+    try:
+        if train_path:
+            # Create path
+            train_news_path = os.path.join(train_path,"news.tsv")
+            train_behaviors_path = os.path.join(train_path,"behaviors.tsv")
+
+            # Category to id in news.tsv file
+            category2id_check_flag, category2id_dest_path = category2id(news_path=train_news_path)
+            if category2id_check_flag:
+                log.info("Successfully created category2id: {}".format(category2id_dest_path))
+            else:
+                log.error("Error to created category2id")
+
+            # user id to ID in news.tsv file
+            user2id_check_flag, user2id_dest_path = user2id(behavior_path=train_behaviors_path)
+            if user2id_check_flag:
+                log.info("Successfully created user2id: {}".format(user2id_dest_path))
+            else:
+                log.error("Error to created user2id")
+              
+            # Encode train news data
+            train_news_check_flag, train_news_path = encode_news_data(news_path=train_news_path, tokenizer= tokenizer)
+            if train_news_check_flag:
+                log.info("Successfully preprocess training dataset: {}".format(train_news_path))
+            else:
+                log.error("Error to preprocess training dataset")
+
+        if valid_path:
+            valid_news_path = os.path.join(valid_path, "news.tsv")
+            valid_news_check_flag, valid_news_path = encode_news_data(news_path=valid_news_path, tokenizer=tokenizer)
+
+        return True
+    except:
+        log.error("Failed to encode news data")
+        return False
+
+        
+
+
 
 if __name__ == '__main__':
     train_path, valid_path = download_extract_small_mind(size = "small", dest_path="./data/mind-demo")
