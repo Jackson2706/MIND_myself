@@ -1,3 +1,4 @@
+import json
 import random
 from typing import List, Union
 
@@ -7,7 +8,6 @@ from torch import Tensor
 
 
 def load_embed(path: str):
-
     return None
 
 
@@ -19,8 +19,8 @@ def get_device() -> str:
         ``cpu`` for CPU or ``cuda`` for GPU
     """
     if torch.cuda.is_available():
-        return 'cuda'
-    return 'cpu'
+        return "cuda"
+    return "cpu"
 
 
 def to_device(batch: dict, device: object) -> dict:
@@ -52,7 +52,7 @@ def convert_arg_line_to_args(arg_line):
         A list of arguments parsed from ``arg_line``
     """
     arg_line = arg_line.strip()
-    if arg_line.startswith('#') or arg_line == '':
+    if arg_line.startswith("#") or arg_line == "":
         return []
     for arg in arg_line.split():
         if not arg.strip():
@@ -87,10 +87,20 @@ def padded_stack(tensors: Union[List[Tensor], List[List]], padding: int = 0):
     Returns:
         Padded sequences
     """
+    tensors_ = []
+    for tensor in tensors:
+        if type(tensor) == str:
+            tensors_.append(torch.Tensor(json.loads(tensor)))
+        else:
+            tensors_.append(torch.Tensor(tensor))
     if type(tensors[0]) == list:
-        tensors = [torch.tensor(tensor) for tensor in tensors]
-    n_dim = len(list(tensors[0].shape))
-    max_shape = [max([tensor.shape[d] for tensor in tensors]) for d in range(n_dim)]
+        tensors = [torch.tensor(tensor) for tensor in tensors_]
+    tensors = tensors_
+    # print(f"Tensor index 0: {tensors[0]}, {type(tensors[0])}")
+    n_dim = tensors[0].ndim
+    max_shape = [
+        max([tensor.shape[d] for tensor in tensors]) for d in range(n_dim)
+    ]
     padded_tensors = []
 
     for tensor in tensors:
@@ -114,16 +124,25 @@ def expand_tensor(tensor: Tensor, extended_shape: List[int], fill: int = 0):
     """
     tensor_shape = tensor.shape
 
-    expanded_tensor = torch.zeros(extended_shape, dtype=tensor.dtype).to(tensor.device)
+    expanded_tensor = torch.zeros(extended_shape, dtype=tensor.dtype).to(
+        tensor.device
+    )
     expanded_tensor = expanded_tensor.fill_(fill)
 
     if len(tensor_shape) == 1:
-        expanded_tensor[:tensor_shape[0]] = tensor
+        expanded_tensor[: tensor_shape[0]] = tensor
     elif len(tensor_shape) == 2:
-        expanded_tensor[:tensor_shape[0], :tensor_shape[1]] = tensor
+        expanded_tensor[: tensor_shape[0], : tensor_shape[1]] = tensor
     elif len(tensor_shape) == 3:
-        expanded_tensor[:tensor_shape[0], :tensor_shape[1], :tensor_shape[2]] = tensor
+        expanded_tensor[
+            : tensor_shape[0], : tensor_shape[1], : tensor_shape[2]
+        ] = tensor
     elif len(tensor_shape) == 4:
-        expanded_tensor[:tensor_shape[0], :tensor_shape[1], :tensor_shape[2], :tensor_shape[3]] = tensor
+        expanded_tensor[
+            : tensor_shape[0],
+            : tensor_shape[1],
+            : tensor_shape[2],
+            : tensor_shape[3],
+        ] = tensor
 
     return expanded_tensor

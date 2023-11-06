@@ -160,7 +160,12 @@ class NewsEncoder(ABC, RobertaPreTrainedModel):
             Tensor of shape ``(batch_size, embed_dim)``
         """
         news_info = []
-        # Title encoder
+        # Title encode
+
+        title_encoding = title_encoding.type(torch.LongTensor).to("cuda:0")
+        title_attn_mask = title_attn_mask.type(torch.LongTensor).to("cuda:0")
+        # print(title_attn_mask.device)
+        # print(self.roberta.device)
         title_word_embed = self.roberta(
             input_ids=title_encoding, attention_mask=title_attn_mask
         )[0]
@@ -170,6 +175,11 @@ class NewsEncoder(ABC, RobertaPreTrainedModel):
         if self.use_cls_embed:
             title_repr = title_word_embed[:, 0, :]
         else:
+            title_attn_mask = title_attn_mask.type(torch.BoolTensor).to(
+                "cuda:0"
+            )
+            # print(title_attn_mask.device)
+            # print(self.title_self_attn.device)
             title_word_context, _ = self.title_self_attn(
                 query=title_word_embed,
                 key=title_word_embed,
@@ -184,6 +194,10 @@ class NewsEncoder(ABC, RobertaPreTrainedModel):
 
         # Sapo encoder
         if self.use_sapo:
+            sapo_encoding = sapo_encoding.type(torch.LongTensor).to("cuda:0")
+            sapo_attn_mask = sapo_attn_mask.type(torch.LongTensor).to("cuda:0")
+            # print(sapo_encoding.device)
+            # print(sapo_attn_mask.device)
             sapo_word_embed = self.roberta(
                 input_ids=sapo_encoding, attention_mask=sapo_attn_mask
             )[0]
@@ -193,6 +207,9 @@ class NewsEncoder(ABC, RobertaPreTrainedModel):
             if self.use_cls_embed:
                 sapo_repr = sapo_word_embed[:, 0, :]
             else:
+                sapo_attn_mask = sapo_attn_mask.type(torch.BoolTensor).to(
+                    "cuda:0"
+                )
                 sapo_word_context, _ = self.sapo_self_attn(
                     query=sapo_word_embed,
                     key=sapo_word_embed,
